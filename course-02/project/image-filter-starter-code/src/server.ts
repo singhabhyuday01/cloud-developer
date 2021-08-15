@@ -1,6 +1,8 @@
 import express from 'express';
 import bodyParser from 'body-parser';
-import {filterImageFromURL, deleteLocalFiles} from './util/util';
+import {filterImageFromURL, deleteLocalFiles, saveToS3} from './util/util';
+
+const validateUrl = require('valid-url');
 
 (async () => {
 
@@ -30,18 +32,32 @@ import {filterImageFromURL, deleteLocalFiles} from './util/util';
   /**************************************************************************** */
 
   //! END @TODO1
-  app.get("/filteredimage", (req, res) => {
+  app.get("/filteredimage", async (req, res) => {
     const url : string = req.query.image_url;
-    filterImageFromURL(url).then(outputPath => {
-      res.sendFile(outputPath, (err) => {
-        if(!err) {
-          deleteLocalFiles([outputPath]);
-        }
-      });
-    }).catch(err => {
-      res.status(400).send(err);
+    const toBeSavedInS3 : boolean = req.query.save;
+    if(!url || !validateUrl.isUri(url)) {
+      return res.status(400).send("Image URL is invalid.");
+    }
+    const outputPath = await filterImageFromURL(url);
+    if(!outputPath) {
+      return res.status(400).send("Error in downloading file.");
+    }
+    if(toBeSavedInS3) {
+      const savedUrl = await saveToS3(outputPath);
+      deleteLocalFiles([outputPath]);
+      if(savedUrl) {
+        return res.status(200).send(savedUrl);
+      } else {
+        return res.status(500).send("File save failed");
+      }
+    }
+    return res.sendFile(outputPath, (err) => {
+      if(!err) {
+        deleteLocalFiles([outputPath]);
+      }
     });
   });
+
   // Root Endpoint
   // Displays a simple message to the user
   app.get( "/", async ( req, res ) => {

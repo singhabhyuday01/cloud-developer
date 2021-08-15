@@ -1,5 +1,6 @@
 import fs from 'fs';
 import Jimp = require('jimp');
+import * as aws from '../AWS';
 
 // filterImageFromURL
 // helper function to download, filter, and save the filtered image locally
@@ -37,4 +38,9 @@ export async function deleteLocalFiles(files:Array<string>){
     for( let file of files) {
         fs.unlinkSync(file);
     }
+}
+
+export async function saveToS3(filePath: string) : Promise<string> {
+    const key = await aws.saveToS3(filePath);
+    return aws.getGetSignedUrl(key);
 }
