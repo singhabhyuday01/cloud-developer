@@ -38,6 +38,8 @@ import {filterImageFromURL, deleteLocalFiles} from './util/util';
           deleteLocalFiles([outputPath]);
         }
       });
+    }).catch(err => {
+      res.status(400).send(err);
     });
   });
   // Root Endpoint
